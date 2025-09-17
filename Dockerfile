@@ -50,7 +50,7 @@ start_zap() {\n\
     \n\
     # Start ZAP daemon with reduced memory and logging\n\
     echo "Starting ZAP daemon with 256MB memory..."\n\
-    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx256m > /tmp/zap.log 2>&1 &\n\
+    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -config api.incerrordetails=true -Xmx256m > /tmp/zap.log 2>&1 &\n\
     ZAP_PID=$!\n\
     echo "ZAP started with PID: $ZAP_PID"\n\
 \n\
@@ -92,14 +92,19 @@ else\n\
     echo "ZAP failed to start - continuing with fallback mode"\n\
 fi\n\
 \n\
+# Run ZAP verification script\n\
+echo "Running ZAP verification..."\n\
+chmod +x /app/verify_zap.sh\n\
+/app/verify_zap.sh\n\
+\n\
 # Start Flask app on Railway's assigned PORT (ZAP uses 8081)\n\
 echo "Starting Flask application..."\n\
 cd /app\n\
 exec python -m gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 1 app:app' > /app/start.sh \
     && chmod +x /app/start.sh
 
-# Expose port (Railway dynamically assigns PORT)
-EXPOSE 8080
+# Expose ports - Flask on dynamic PORT, ZAP on 8081
+EXPOSE 8080 8081
 
 # Start command
 CMD ["/app/start.sh"]
