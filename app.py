@@ -118,19 +118,38 @@ def run_spider_scan(target_url):
         scan_status['spider_progress'] = 0
         scan_status['spider_results'] = []
         
+        # Test ZAP connection first
+        connected, message = test_zap_connection()
+        if not connected:
+            scan_status['spider_results'] = [f'ZAP Connection Error: {message}']
+            scan_status['spider_running'] = False
+            return
+        
         # Configure spider for maximum crawling depth and coverage
-        zap.spider.set_option_max_depth(15)  # Very deep crawling
-        zap.spider.set_option_max_children(100)  # Many more children per node
-        zap.spider.set_option_max_duration(90)  # 90 minutes max for thorough crawling
-        zap.spider.set_option_thread_count(20)  # Maximum threads for speed
         try:
-            zap.spider.set_option_max_parse_size_bytes(5242880)  # 5MB max parse size
-            zap.spider.set_option_parse_comments(True)  # Parse HTML comments
-            zap.spider.set_option_parse_robots_txt(True)  # Parse robots.txt
-            zap.spider.set_option_parse_sitemap_xml(True)  # Parse sitemap.xml
-            zap.spider.set_option_handle_parameters('USE_ALL')  # Handle all parameters
+            zap.spider.set_option_max_depth(20)  # Even deeper crawling
+            zap.spider.set_option_max_children(200)  # More children per node
+            zap.spider.set_option_max_duration(120)  # 2 hours max for thorough crawling
+            zap.spider.set_option_thread_count(10)  # Reduced threads for stability
+            zap.spider.set_option_parse_comments(True)
+            zap.spider.set_option_parse_robots_txt(True)
+            zap.spider.set_option_parse_sitemap_xml(True)
+            zap.spider.set_option_handle_parameters('USE_ALL')
+            zap.spider.set_option_post_form(True)  # Handle POST forms
+            zap.spider.set_option_process_form(True)  # Process forms
+            print("Spider configured for comprehensive crawling")
         except Exception as e:
             print(f"Some spider options not available: {e}")
+        
+        # First, ensure the URL is accessible by ZAP
+        try:
+            zap.urlopen(target_url)
+            time.sleep(3)  # Give ZAP more time to process
+            print(f"Successfully accessed target URL: {target_url}")
+        except Exception as e:
+            scan_status['spider_results'] = [f'URL Access Error: {str(e)}']
+            scan_status['spider_running'] = False
+            return
         
         # Add common paths for forced browsing
         common_paths = [
@@ -148,28 +167,65 @@ def run_spider_scan(target_url):
             '/clientaccesspolicy.xml', '/favicon.ico', '/apple-touch-icon.png'
         ]
         
+        # Clear any existing spider scans
+        try:
+            zap.spider.stop_all_scans()
+            time.sleep(2)
+        except:
+            pass
+        
         # Start main spider scan with comprehensive settings
-        scan_id = zap.spider.scan(target_url, maxchildren=100, recurse=True, contextname=None, subtreeonly=False)
+        scan_id = zap.spider.scan(target_url, maxchildren=200, recurse=True, contextname=None, subtreeonly=False)
         print(f"Started comprehensive spider scan with ID: {scan_id}")
+        
+        # Wait a moment for scan to initialize
+        time.sleep(5)
         
         # Add forced browsing for common paths
         base_domain = target_url.rstrip('/')
+        print(f"Starting forced browsing for {base_domain}")
+        
+        # Add seed URLs to help spider discover more content
+        seed_urls = [
+            f"{base_domain}/",
+            f"{base_domain}/index.html",
+            f"{base_domain}/home",
+            f"{base_domain}/main",
+            f"{base_domain}/sitemap.xml",
+            f"{base_domain}/robots.txt"
+        ]
+        
+        for seed_url in seed_urls:
+            try:
+                zap.urlopen(seed_url)
+                time.sleep(0.5)
+                print(f"Added seed URL: {seed_url}")
+            except:
+                continue
+        
+        # Add forced browsing for common paths
         for path in common_paths:
             try:
                 test_url = base_domain + path
                 zap.urlopen(test_url)
-                time.sleep(0.1)  # Small delay to avoid overwhelming
+                time.sleep(0.2)  # Slightly longer delay
             except:
                 continue
         
         # Add additional discovery methods
         try:
-            # Try common subdirectories
-            subdirs = ['/admin', '/api', '/app', '/assets', '/backup', '/config', '/data', '/docs', '/files', '/images', '/js', '/css', '/login', '/panel', '/private', '/public', '/static', '/test', '/tmp', '/upload', '/user', '/wp-admin', '/wp-content']
+            # Try common subdirectories with more comprehensive list
+            subdirs = [
+                '/admin', '/api', '/app', '/assets', '/backup', '/config', '/data', '/docs', 
+                '/files', '/images', '/js', '/css', '/login', '/panel', '/private', '/public', 
+                '/static', '/test', '/tmp', '/upload', '/user', '/wp-admin', '/wp-content',
+                '/blog', '/news', '/about', '/contact', '/products', '/services', '/support',
+                '/help', '/faq', '/search', '/category', '/categories', '/tag', '/tags'
+            ]
             for subdir in subdirs:
                 try:
                     zap.urlopen(base_domain + subdir)
-                    time.sleep(0.05)
+                    time.sleep(0.1)
                 except:
                     continue
         except:
@@ -184,15 +240,26 @@ def run_spider_scan(target_url):
                 progress = int(zap.spider.status(scan_id))
                 scan_status['spider_progress'] = progress
                 
+                # Get current URL count for better progress tracking
+                current_urls = zap.core.urls()
+                print(f"Spider progress: {progress}%, URLs found: {len(current_urls)}")
+                
                 if progress >= 100:
+                    print("Spider scan completed")
                     break
                     
-                time.sleep(5)
-                wait_time += 5
+                time.sleep(10)  # Longer intervals for better stability
+                wait_time += 10
                 
             except Exception as e:
                 print(f"Error checking spider status: {e}")
-                break
+                # Try to reconnect to ZAP
+                connected, message = test_zap_connection()
+                if not connected:
+                    print(f"Lost ZAP connection: {message}")
+                    break
+                time.sleep(5)
+                wait_time += 5
         
         # Get comprehensive results
         spider_results = zap.spider.results(scan_id)
@@ -534,6 +601,11 @@ def get_scan_status():
 @app.route('/stop_scan', methods=['POST'])
 def stop_scan():
     try:
+        # Test ZAP connection first
+        connected, message = test_zap_connection()
+        if not connected:
+            return jsonify({'error': f'Cannot connect to ZAP: {message}'}), 500
+        
         # Stop all running scans
         zap.spider.stop_all_scans()
         zap.ascan.stop_all_scans()
