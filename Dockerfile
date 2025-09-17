@@ -14,10 +14,13 @@ ENV JAVA_HOME=/usr/lib/jvm/default-java
 RUN wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2_16_1_unix.sh -O /tmp/zap.sh \
     && chmod +x /tmp/zap.sh \
     && /tmp/zap.sh -q -dir /opt/zaproxy \
-    && rm /tmp/zap.sh
+    && rm /tmp/zap.sh \
+    && mkdir -p /zap \
+    && ln -s /opt/zaproxy/zap.sh /zap/zap.sh
 
 # Set ZAP environment
 ENV ZAP_HOME=/opt/zaproxy
+ENV PATH=$PATH:/opt/zaproxy
 ENV PATH=$ZAP_HOME:$PATH
 
 # Create app directory
@@ -40,7 +43,7 @@ start_zap() {\n\
     cd $ZAP_HOME\n\
     # Start ZAP daemon and wait for it to be ready\n\
     echo "Starting ZAP daemon..."\n\
-    /zap/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx2g &\n\
+    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx2g &\n\
 \n\
     # Wait for ZAP to start (increased timeout and better health check)\n\
     echo "Waiting for ZAP to start..."\n\
