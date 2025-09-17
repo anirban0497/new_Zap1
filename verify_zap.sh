@@ -55,6 +55,31 @@ elif command -v ss &> /dev/null; then
     fi
 else
     echo "? Cannot check port 8081 (netstat/ss not available)"
+    # Alternative check using lsof
+    if command -v lsof &> /dev/null; then
+        LSOF_CHECK=$(lsof -i :8081)
+        if [ -n "$LSOF_CHECK" ]; then
+            echo "✓ Port 8081 is listening (lsof):"
+            echo "$LSOF_CHECK"
+        else
+            echo "✗ Port 8081 is NOT listening (lsof)"
+        fi
+    fi
+fi
+
+# Test socket connection from within container
+echo "Testing socket connection to 127.0.0.1:8081..."
+if timeout 5 bash -c "</dev/tcp/127.0.0.1/8081"; then
+    echo "✓ Socket connection to 127.0.0.1:8081 successful"
+else
+    echo "✗ Socket connection to 127.0.0.1:8081 failed"
+fi
+
+echo "Testing socket connection to localhost:8081..."
+if timeout 5 bash -c "</dev/tcp/localhost/8081"; then
+    echo "✓ Socket connection to localhost:8081 successful"
+else
+    echo "✗ Socket connection to localhost:8081 failed"
 fi
 echo
 

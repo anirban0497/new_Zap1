@@ -91,8 +91,11 @@ scan_status = {
 @app.route('/')
 def index():
     # Test ZAP connection on page load and show status
-    connected, message = test_zap_connection()
-    zap_status = "Connected" if connected else f"Disconnected: {message}"
+    try:
+        connected, message = test_zap_connection()
+        zap_status = "Connected" if connected else f"Disconnected: {message}"
+    except Exception as e:
+        zap_status = f"Error testing connection: {str(e)}"
     return render_template('index.html', zap_status=zap_status)
 
 @app.route('/start_scan', methods=['POST'])

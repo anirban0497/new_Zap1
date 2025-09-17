@@ -64,16 +64,20 @@ start_zap() {\n\
             return 1\n\
         fi\n\
         \n\
-        # Simple connection test without API key first\n\
-        if curl -s --connect-timeout 2 http://127.0.0.1:8081/ > /dev/null 2>&1; then\n\
-            echo "ZAP port 8081 is responding!"\n\
+        # Test socket connection first\n\
+        if timeout 2 bash -c "</dev/tcp/127.0.0.1/8081" 2>/dev/null; then\n\
+            echo "ZAP socket connection successful!"\n\
             # Now test with API\n\
             if curl -s --connect-timeout 5 "http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1; then\n\
                 echo "ZAP API is ready!"\n\
+                # Wait a bit more to ensure full startup\n\
+                sleep 5\n\
                 return 0\n\
             else\n\
-                echo "ZAP port responding but API not ready yet..."\n\
+                echo "ZAP socket responding but API not ready yet..."\n\
             fi\n\
+        else\n\
+            echo "ZAP socket not responding yet..."\n\
         fi\n\
         echo "Waiting for ZAP... ($i/30) PID: $ZAP_PID"\n\
         sleep 3\n\
@@ -97,6 +101,10 @@ fi\n\
 echo "Running ZAP verification..."\n\
 chmod +x /app/verify_zap.sh\n\
 /app/verify_zap.sh\n\
+\n\
+# Run connection debug script\n\
+echo "Running connection debug..."\n\
+python3 /app/debug_connection.py\n\
 \n\
 # Start Flask app on Railway's assigned PORT (ZAP uses 8081)\n\
 echo "Starting Flask application..."\n\
