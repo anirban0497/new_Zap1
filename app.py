@@ -29,15 +29,22 @@ zap = ZAPv2(proxies={'http': zap_url, 'https': zap_url}, apikey=zap_api_key)
 # Test ZAP connection function
 def test_zap_connection():
     try:
-        # Try localhost first, then 127.0.0.1 as fallback
-        for host in ['localhost', '127.0.0.1']:
+        # Try multiple connection methods
+        hosts_to_try = ['127.0.0.1', 'localhost', '0.0.0.0']
+        
+        for host in hosts_to_try:
             try:
                 test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'})
                 version = test_zap.core.version
+                # Update global zap instance if connection successful
+                global zap
+                zap = test_zap
                 return True, f"Connected to ZAP version {version} on {host}"
-            except:
+            except Exception as e:
+                print(f"Failed to connect to ZAP on {host}: {e}")
                 continue
-        return False, "Could not connect to ZAP on localhost or 127.0.0.1:8081"
+        
+        return False, f"Could not connect to ZAP on any host: {hosts_to_try}"
     except Exception as e:
         return False, str(e)
 
@@ -531,6 +538,22 @@ def stop_scan():
         return jsonify({'message': 'All scans stopped'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/refresh_status')
+def refresh_status():
+    """Clear all scan results and reset status"""
+    scan_status['spider_results'] = []
+    scan_status['active_results'] = []
+    scan_status['spider_progress'] = 0
+    scan_status['active_progress'] = 0
+    
+    # Try to reconnect to ZAP
+    connected, message = test_zap_connection()
+    return jsonify({
+        'message': 'Results cleared',
+        'zap_status': 'Connected' if connected else 'Disconnected',
+        'zap_message': message
+    })
 
 @app.route('/clear_results', methods=['POST'])
 def clear_results():

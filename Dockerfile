@@ -38,14 +38,14 @@ set -e\n\
 start_zap() {\n\
     echo "Starting ZAP daemon..."\n\
     cd $ZAP_HOME\n\
-    ./zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=false > /tmp/zap.log 2>&1 &\n\
+    ./zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=false > /tmp/zap.log 2>&1 &\n\
     ZAP_PID=$!\n\
     echo "ZAP started with PID: $ZAP_PID"\n\
     \n\
     # Wait for ZAP to be ready\n\
     echo "Waiting for ZAP to start..."\n\
     for i in {1..90}; do\n\
-        if curl -s "http://localhost:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1; then\n\
+        if curl -s "http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1; then\n\
             echo "ZAP is ready!"\n\
             return 0\n\
         fi\n\
