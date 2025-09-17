@@ -148,9 +148,9 @@ def run_spider_scan(target_url):
             '/clientaccesspolicy.xml', '/favicon.ico', '/apple-touch-icon.png'
         ]
         
-        # Start main spider scan
-        scan_id = zap.spider.scan(target_url)
-        print(f"Started spider scan with ID: {scan_id}")
+        # Start main spider scan with comprehensive settings
+        scan_id = zap.spider.scan(target_url, maxchildren=100, recurse=True, contextname=None, subtreeonly=False)
+        print(f"Started comprehensive spider scan with ID: {scan_id}")
         
         # Add forced browsing for common paths
         base_domain = target_url.rstrip('/')
@@ -161,6 +161,19 @@ def run_spider_scan(target_url):
                 time.sleep(0.1)  # Small delay to avoid overwhelming
             except:
                 continue
+        
+        # Add additional discovery methods
+        try:
+            # Try common subdirectories
+            subdirs = ['/admin', '/api', '/app', '/assets', '/backup', '/config', '/data', '/docs', '/files', '/images', '/js', '/css', '/login', '/panel', '/private', '/public', '/static', '/test', '/tmp', '/upload', '/user', '/wp-admin', '/wp-content']
+            for subdir in subdirs:
+                try:
+                    zap.urlopen(base_domain + subdir)
+                    time.sleep(0.05)
+                except:
+                    continue
+        except:
+            pass
         
         # Monitor progress with extended timeout
         max_wait_time = 3600  # 60 minutes
@@ -230,29 +243,22 @@ def configure_comprehensive_scanning():
         ]
         
         # Configure each scanner with maximum sensitivity
-        for scanner_id in scanner_ids:
-            try:
-                zap.ascan.set_scanner_alert_threshold(scanner_id, 'LOW')  # Lowest threshold for maximum alerts
-                zap.ascan.set_scanner_attack_strength(scanner_id, 'HIGH')  # Highest attack strength
-            except Exception as e:
-                print(f"Could not configure scanner {scanner_id}: {e}")
-                continue
-        
-        # Configure passive scan rules for comprehensive detection
         zap.pscan.enable_all_scanners()
         
-        # Set scan policies for MAXIMUM detection (optimized for 100-200+ vulnerabilities)
-        zap.ascan.set_option_max_rule_duration_in_mins(60)  # Extended time per rule
-        zap.ascan.set_option_max_scan_duration_in_mins(180)  # 3 hours total scan time
-        zap.ascan.set_option_max_alerts_per_rule(2000)  # Maximum alerts per rule
-        zap.ascan.set_option_thread_per_host(10)  # More threads for comprehensive scanning
-        zap.ascan.set_option_delay_in_ms(0)  # No delay between requests for speed
-        zap.ascan.set_option_inject_plugin_id_in_header(True)  # Inject plugin ID for tracking
+        # Configure spider for comprehensive URL discovery
+        zap.spider.set_option_max_depth(15)                  # Increased depth
+        zap.spider.set_option_max_children(100)              # More URLs per page
+        zap.spider.set_option_thread_count(20)               # More threads
+        zap.spider.set_option_max_duration(60)               # 60 minutes max
+        zap.spider.set_option_max_parse_size_bytes(2621440)  # 2.5MB max parse size
+        zap.spider.set_option_parse_comments(True)           # Parse HTML comments
+        zap.spider.set_option_parse_robots_txt(True)         # Parse robots.txt
+        zap.spider.set_option_parse_sitemap_xml(True)        # Parse sitemap.xml
+        zap.spider.set_option_handle_parameters('USE_ALL')   # Handle all parameters
         
-        # Additional configuration for maximum vulnerability detection
+        # Enable forced browsing
         try:
-            zap.ascan.set_option_add_query_param(True)  # Add query parameters
-            zap.ascan.set_option_handle_anti_csrf_tokens(True)  # Handle CSRF tokens
+            zap.forcedUser.set_forced_user_mode_enabled(True)
             zap.ascan.set_option_rescan_in_attack_mode(True)  # Rescan in attack mode
         except Exception as e:
             print(f"Some advanced options not available: {e}")
@@ -825,12 +831,17 @@ def generate_pdf_report(scan_results, target_url):
     buffer.seek(0)
     return buffer
 
-@app.route('/download_pdf', methods=['POST'])
+@app.route('/download_pdf', methods=['GET', 'POST'])
 def download_pdf():
     """Generate and download PDF report of scan results"""
     try:
-        data = request.json
-        target_url = data.get('url', 'Unknown')
+        # Handle both GET and POST requests
+        if request.method == 'POST' and request.json:
+            data = request.json
+            target_url = data.get('url', 'Unknown')
+        else:
+            # For GET requests, use query parameters or default values
+            target_url = request.args.get('url', scan_status.get('target_url', 'Unknown'))
         
         # Get current scan results
         active_results = scan_status.get('active_results', [])
