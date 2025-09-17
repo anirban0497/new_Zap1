@@ -73,8 +73,7 @@ def test_zapv2_client():
             print(f"Testing {host} with proxy config...")
             zap_proxy = ZAPv2(
                 apikey=api_key,
-                proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'},
-                timeout=10
+                proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'}
             )
             version = zap_proxy.core.version
             print(f"✓ ZAPv2 proxy client on {host}:8081 successful (version: {version})")
@@ -84,7 +83,7 @@ def test_zapv2_client():
         try:
             # Test without proxy configuration (new method)
             print(f"Testing {host} without proxy config...")
-            zap_direct = ZAPv2(apikey=api_key, proxies=None, timeout=10)
+            zap_direct = ZAPv2(apikey=api_key, proxies=None)
             zap_direct._ZAPv2__base = f'http://{host}:8081'
             version = zap_direct.core.version
             print(f"✓ ZAPv2 direct client on {host}:8081 successful (version: {version})")

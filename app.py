@@ -50,8 +50,7 @@ def test_zap_connection():
                 # Create new ZAP instance without proxy configuration
                 test_zap = ZAPv2(
                     apikey='n8j4egcp9764kits0iojhf7kk5',
-                    proxies=None,  # Don't use ZAP as proxy, just API calls
-                    timeout=10
+                    proxies=None  # Don't use ZAP as proxy, just API calls
                 )
                 
                 # Override the base URL to point directly to ZAP API
@@ -750,7 +749,7 @@ def zap_status():
                 continue
             
             # Test ZAP API
-            test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies=None, timeout=10)
+            test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies=None)
             test_zap._ZAPv2__base = f'http://{host}:8081'
             version = test_zap.core.version
             diagnostics['connection_attempts'].append({
