@@ -48,33 +48,34 @@ start_zap() {\n\
         return 1\n\
     fi\n\
     \n\
-    # Start ZAP daemon with reduced memory and logging\n\
-    echo "Starting ZAP daemon with 256MB memory..."\n\
-    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -config api.incerrordetails=true -Xmx256m > /tmp/zap.log 2>&1 &\n\
+    # Start ZAP daemon with minimal memory and simpler config\n\
+    echo "Starting ZAP daemon with 128MB memory..."\n\
+    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx128m > /tmp/zap.log 2>&1 &\n\
     ZAP_PID=$!\n\
     echo "ZAP started with PID: $ZAP_PID"\n\
 \n\
     # Wait for ZAP to start with better error checking\n\
     echo "Waiting for ZAP to start..."\n\
-    for i in {1..40}; do\n\
+    for i in {1..30}; do\n\
         # Check if ZAP process is still running\n\
         if ! kill -0 $ZAP_PID 2>/dev/null; then\n\
-            echo "ERROR: ZAP process died. Log:"\n\
-            cat /tmp/zap.log || echo "No ZAP log available"\n\
+            echo "ERROR: ZAP process died after $((i*3)) seconds. Log:"\n\
+            cat /tmp/zap.log 2>/dev/null || echo "No ZAP log available"\n\
             return 1\n\
         fi\n\
         \n\
-        # Check if ZAP is responding\n\
-        if curl -s http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
-            echo "ZAP is ready!"\n\
-            sleep 3\n\
-            if curl -s http://127.0.0.1:8081/JSON/core/view/urls/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
-                echo "ZAP is fully operational!"\n\
-                curl -s "http://127.0.0.1:8081/JSON/core/action/setOptionTimeoutInSecs/?Integer=0&apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1 || true\n\
+        # Simple connection test without API key first\n\
+        if curl -s --connect-timeout 2 http://127.0.0.1:8081/ > /dev/null 2>&1; then\n\
+            echo "ZAP port 8081 is responding!"\n\
+            # Now test with API\n\
+            if curl -s --connect-timeout 5 "http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1; then\n\
+                echo "ZAP API is ready!"\n\
                 return 0\n\
+            else\n\
+                echo "ZAP port responding but API not ready yet..."\n\
             fi\n\
         fi\n\
-        echo "Waiting for ZAP... ($i/40) PID: $ZAP_PID"\n\
+        echo "Waiting for ZAP... ($i/30) PID: $ZAP_PID"\n\
         sleep 3\n\
     done\n\
     \n\

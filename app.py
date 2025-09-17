@@ -24,7 +24,9 @@ zap_host = os.getenv('ZAP_HOST', '127.0.0.1')
 zap_port = os.getenv('ZAP_PORT', '8081')
 zap_api_key = 'n8j4egcp9764kits0iojhf7kk5'
 zap_url = f'http://{zap_host}:{zap_port}'
-zap = ZAPv2(proxies={'http': zap_url, 'https': zap_url}, apikey=zap_api_key)
+# Initialize ZAP without proxy configuration for API-only usage
+zap = ZAPv2(apikey=zap_api_key, proxies=None)
+zap._ZAPv2__base = zap_url
 
 # Test ZAP connection function
 def test_zap_connection():
@@ -34,12 +36,26 @@ def test_zap_connection():
         
         for host in hosts_to_try:
             try:
-                # Create new ZAP instance with timeout
+                # First test if port is reachable
+                import socket
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5)
+                result = sock.connect_ex((host, 8081))
+                sock.close()
+                
+                if result != 0:
+                    print(f"Port 8081 not reachable on {host}")
+                    continue
+                
+                # Create new ZAP instance without proxy configuration
                 test_zap = ZAPv2(
-                    apikey='n8j4egcp9764kits0iojhf7kk5', 
-                    proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'},
-                    timeout=30
+                    apikey='n8j4egcp9764kits0iojhf7kk5',
+                    proxies=None,  # Don't use ZAP as proxy, just API calls
+                    timeout=10
                 )
+                
+                # Override the base URL to point directly to ZAP API
+                test_zap._ZAPv2__base = f'http://{host}:8081'
                 
                 # Test basic connection
                 version = test_zap.core.version
@@ -715,22 +731,37 @@ def zap_status():
     hosts_to_try = ['127.0.0.1', 'localhost']
     for host in hosts_to_try:
         try:
-            test_zap = ZAPv2(
-                apikey='n8j4egcp9764kits0iojhf7kk5', 
-                proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'},
-                timeout=10
-            )
+            # Test socket connection first
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            socket_result = sock.connect_ex((host, 8081))
+            sock.close()
+            
+            if socket_result != 0:
+                diagnostics['connection_attempts'].append({
+                    'host': host,
+                    'status': 'failed',
+                    'error': f'Port 8081 not reachable (socket error: {socket_result})'
+                })
+                continue
+            
+            # Test ZAP API
+            test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies=None, timeout=10)
+            test_zap._ZAPv2__base = f'http://{host}:8081'
             version = test_zap.core.version
             diagnostics['connection_attempts'].append({
                 'host': host,
                 'status': 'success',
-                'version': version
+                'version': version,
+                'socket_test': 'passed'
             })
         except Exception as e:
             diagnostics['connection_attempts'].append({
                 'host': host,
                 'status': 'failed',
-                'error': str(e)
+                'error': str(e),
+                'socket_test': 'passed' if socket_result == 0 else 'failed'
             })
     
     return jsonify({
