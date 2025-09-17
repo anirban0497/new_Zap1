@@ -728,11 +728,8 @@ def update_zap_config():
         
         # Update global ZAP configuration
         global zap
-        zap_url = f'http://{zap_address}:{zap_port}'
-        zap = ZAPv2(
-            apikey=zap_api_key,
-            proxies={'http': zap_url, 'https': zap_url}
-        )
+        zap = ZAPv2(apikey=zap_api_key, proxies=None)
+        zap._ZAPv2__base = f'http://{zap_address}:{zap_port}'
         
         return jsonify({
             'success': True,
@@ -756,11 +753,20 @@ def test_zap_connection_endpoint():
         zap_api_key = data.get('api_key', 'n8j4egcp9764kits0iojhf7kk5')
         
         # Test connection with provided settings
-        zap_url = f'http://{zap_address}:{zap_port}'
-        test_zap = ZAPv2(
-            apikey=zap_api_key,
-            proxies={'http': zap_url, 'https': zap_url}
-        )
+        import socket
+        
+        # First test if port is reachable
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex((zap_address, int(zap_port)))
+        sock.close()
+        
+        if result != 0:
+            raise Exception(f"Cannot reach {zap_address}:{zap_port} - connection refused")
+        
+        # Create ZAP client without proxy (direct API calls)
+        test_zap = ZAPv2(apikey=zap_api_key, proxies=None)
+        test_zap._ZAPv2__base = f'http://{zap_address}:{zap_port}'
         
         # Test basic connection
         version = test_zap.core.version
