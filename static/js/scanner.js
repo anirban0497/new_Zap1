@@ -5,6 +5,88 @@ document.addEventListener('DOMContentLoaded', function() {
     checkZapStatus();
 });
 
+function updateZapConfig() {
+    const address = document.getElementById('zapProxyAddress').value;
+    const port = document.getElementById('zapProxyPort').value;
+    const apiKey = document.getElementById('zapApiKey').value;
+    
+    if (!address || !port || !apiKey) {
+        showNotification('Please fill in all ZAP configuration fields', 'error');
+        return;
+    }
+    
+    fetch('/update_zap_config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            address: address,
+            port: parseInt(port),
+            api_key: apiKey
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Automatically test connection after updating config
+            setTimeout(() => testZapConnection(), 1000);
+        } else {
+            showNotification('Configuration update failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Configuration update failed: ' + error.message, 'error');
+    });
+}
+
+function testZapConnection() {
+    const address = document.getElementById('zapProxyAddress').value;
+    const port = document.getElementById('zapProxyPort').value;
+    const apiKey = document.getElementById('zapApiKey').value;
+    
+    if (!address || !port || !apiKey) {
+        showNotification('Please fill in all ZAP configuration fields', 'error');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('zapStatus');
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing connection to external ZAP...';
+    statusDiv.className = 'alert alert-warning';
+    
+    fetch('/test_zap_connection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            address: address,
+            port: parseInt(port),
+            api_key: apiKey
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.connected) {
+            statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> Connected to ZAP v${data.version} at ${data.config.address}:${data.config.port}<br>
+                <small>Found ${data.urls_count} URLs in ZAP session</small>`;
+            statusDiv.className = 'alert alert-success';
+            showNotification('ZAP connection successful!', 'success');
+        } else {
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Connection Failed: ${data.error}<br>
+                <small>Make sure ZAP is running on ${address}:${port} with API enabled</small>`;
+            statusDiv.className = 'alert alert-danger';
+            showNotification('ZAP connection failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `<i class="fas fa-times-circle"></i> Connection test failed: ${error.message}`;
+        statusDiv.className = 'alert alert-danger';
+        showNotification('Connection test failed: ' + error.message, 'error');
+    });
+}
+
 function checkZapStatus() {
     const statusDiv = document.getElementById('zapStatus');
     statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking ZAP connection...';

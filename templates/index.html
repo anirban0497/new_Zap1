@@ -93,25 +93,58 @@
             </div>
             
             <div class="p-4">
-                <!-- ZAP Status Section -->
+                <!-- ZAP Configuration Section -->
                 <div class="card scan-card">
                     <div class="card-body">
-                        <h5 class="card-title"><i class="fas fa-shield-alt"></i> ZAP Connection Status</h5>
+                        <h5 class="card-title"><i class="fas fa-cog"></i> ZAP Configuration</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="zapProxyAddress" class="form-label">ZAP Proxy Address</label>
+                                    <input type="text" class="form-control" id="zapProxyAddress" value="localhost" placeholder="localhost">
+                                    <div class="form-text">IP address or hostname of your ZAP instance</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="zapProxyPort" class="form-label">ZAP Proxy Port</label>
+                                    <input type="number" class="form-control" id="zapProxyPort" value="8080" placeholder="8080">
+                                    <div class="form-text">Port number where ZAP proxy is running</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="zapApiKey" class="form-label">ZAP API Key</label>
+                                    <input type="text" class="form-control" id="zapApiKey" value="n8j4egcp9764kits0iojhf7kk5" placeholder="API Key">
+                                    <div class="form-text">API key from your ZAP instance</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mb-3">
+                            <button class="btn btn-primary" onclick="updateZapConfig()">
+                                <i class="fas fa-save"></i> Update Configuration
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="testZapConnection()">
+                                <i class="fas fa-plug"></i> Test Connection
+                            </button>
+                        </div>
                         <div id="zapStatus" class="alert alert-warning">
                             <i class="fas fa-spinner fa-spin"></i> Checking ZAP connection...
                         </div>
-                        <button class="btn btn-outline-primary btn-sm" onclick="checkZapStatus()">
-                            <i class="fas fa-sync"></i> Refresh Status
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="debugZAP()">
-                            <i class="fas fa-bug"></i> Debug ZAP
-                        </button>
-                        <button class="btn btn-warning" onclick="forceResults()">
-                            <i class="fas fa-sync"></i> Force Retrieve Results
-                        </button>
-                        <button class="btn btn-success" onclick="downloadPDF()" id="downloadBtn">
-                            <i class="fas fa-download"></i> Download PDF Report
-                        </button>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-primary btn-sm" onclick="checkZapStatus()">
+                                <i class="fas fa-sync"></i> Refresh Status
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="debugZAP()">
+                                <i class="fas fa-bug"></i> Debug ZAP
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="forceResults()">
+                                <i class="fas fa-sync"></i> Force Retrieve Results
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="downloadPDF()" id="downloadBtn">
+                                <i class="fas fa-download"></i> Download PDF Report
+                            </button>
+                        </div>
                     </div>
                 </div>
 

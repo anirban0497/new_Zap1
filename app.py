@@ -717,6 +717,72 @@ def clear_results():
     scan_status['active_progress'] = 0
     return jsonify({'message': 'Results cleared'})
 
+@app.route('/update_zap_config', methods=['POST'])
+def update_zap_config():
+    """Update ZAP configuration with user-provided settings"""
+    try:
+        data = request.json
+        zap_address = data.get('address', 'localhost')
+        zap_port = data.get('port', 8080)
+        zap_api_key = data.get('api_key', 'n8j4egcp9764kits0iojhf7kk5')
+        
+        # Update global ZAP configuration
+        global zap
+        zap_url = f'http://{zap_address}:{zap_port}'
+        zap = ZAPv2(
+            apikey=zap_api_key,
+            proxies={'http': zap_url, 'https': zap_url}
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'ZAP configuration updated to {zap_address}:{zap_port}',
+            'config': {
+                'address': zap_address,
+                'port': zap_port,
+                'api_key': zap_api_key[:8] + '...'  # Show only first 8 chars for security
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/test_zap_connection', methods=['POST'])
+def test_zap_connection_endpoint():
+    """Test connection to ZAP with current configuration"""
+    try:
+        data = request.json
+        zap_address = data.get('address', 'localhost')
+        zap_port = data.get('port', 8080)
+        zap_api_key = data.get('api_key', 'n8j4egcp9764kits0iojhf7kk5')
+        
+        # Test connection with provided settings
+        zap_url = f'http://{zap_address}:{zap_port}'
+        test_zap = ZAPv2(
+            apikey=zap_api_key,
+            proxies={'http': zap_url, 'https': zap_url}
+        )
+        
+        # Test basic connection
+        version = test_zap.core.version
+        urls = test_zap.core.urls()
+        
+        return jsonify({
+            'success': True,
+            'connected': True,
+            'version': version,
+            'urls_count': len(urls),
+            'config': {
+                'address': zap_address,
+                'port': zap_port
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'connected': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/zap_status')
 def zap_status():
     connected, message = test_zap_connection()
