@@ -19,9 +19,9 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-# ZAP configuration - Connect to ZAP running on port 8080
+# ZAP configuration - Connect to ZAP running on port 8081
 zap_host = os.getenv('ZAP_HOST', '127.0.0.1')
-zap_port = os.getenv('ZAP_PORT', '8080')
+zap_port = os.getenv('ZAP_PORT', '8081')
 zap_api_key = 'n8j4egcp9764kits0iojhf7kk5'
 zap_url = f'http://{zap_host}:{zap_port}'
 zap = ZAPv2(proxies={'http': zap_url, 'https': zap_url}, apikey=zap_api_key)
@@ -34,7 +34,7 @@ def test_zap_connection():
         
         for host in hosts_to_try:
             try:
-                test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8080', 'https': f'http://{host}:8080'})
+                test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'})
                 version = test_zap.core.version
                 # Update global zap instance if connection successful
                 global zap
@@ -583,7 +583,7 @@ def debug_zap():
         connected = False
         for host in ['localhost', '127.0.0.1']:
             try:
-                test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8080', 'https': f'http://{host}:8080'})
+                test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'})
                 version = test_zap.core.version
                 debug_info['connection_status'] = f'Connected to {host}'
                 debug_info['zap_version'] = version
