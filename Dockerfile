@@ -65,14 +65,14 @@ else\n\
     echo "ZAP failed to start - continuing with fallback mode"\n\
 fi\n\
 \n\
-# Start Flask app on port 8081 alongside ZAP\n\
+# Start Flask app on Railway's assigned PORT (ZAP uses 8081)\n\
 echo "Starting Flask application..."\n\
 cd /app\n\
-exec python -m gunicorn --bind 0.0.0.0:8081 --timeout 300 --workers 1 app:app' > /app/start.sh \
+exec python -m gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 1 app:app' > /app/start.sh \
     && chmod +x /app/start.sh
 
-# Expose port
-EXPOSE 8081
+# Expose port (Railway dynamically assigns PORT)
+EXPOSE 8080
 
 # Start command
 CMD ["/app/start.sh"]
