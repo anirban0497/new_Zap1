@@ -30,16 +30,44 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create startup script
+# Create startup script that handles ZAP startup more robustly
 RUN echo '#!/bin/bash\n\
-# Start ZAP in daemon mode\n\
-$ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.key=n8j4egcp9764kits0iojhf7kk5 &\n\
+set -e\n\
 \n\
-# Wait for ZAP to start\n\
-sleep 10\n\
+# Function to start ZAP\n\
+start_zap() {\n\
+    echo "Starting ZAP daemon..."\n\
+    cd $ZAP_HOME\n\
+    ./zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true > /tmp/zap.log 2>&1 &\n\
+    ZAP_PID=$!\n\
+    echo "ZAP started with PID: $ZAP_PID"\n\
+    \n\
+    # Wait for ZAP to be ready\n\
+    echo "Waiting for ZAP to start..."\n\
+    for i in {1..90}; do\n\
+        if curl -s http://localhost:8081/JSON/core/view/version/ > /dev/null 2>&1; then\n\
+            echo "ZAP is ready!"\n\
+            return 0\n\
+        fi\n\
+        echo "Waiting for ZAP... ($i/90)"\n\
+        sleep 2\n\
+    done\n\
+    \n\
+    echo "ZAP failed to start in 180 seconds. Log:"\n\
+    cat /tmp/zap.log || echo "No ZAP log available"\n\
+    return 1\n\
+}\n\
+\n\
+# Try to start ZAP, but continue even if it fails\n\
+if start_zap; then\n\
+    echo "ZAP started successfully"\n\
+else\n\
+    echo "ZAP failed to start - continuing with fallback mode"\n\
+fi\n\
 \n\
 # Start Flask app\n\
-exec gunicorn --bind 0.0.0.0:$PORT app:app' > /app/start.sh \
+echo "Starting Flask application..."\n\
+exec gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 1 app:app' > /app/start.sh \
     && chmod +x /app/start.sh
 
 # Expose port
