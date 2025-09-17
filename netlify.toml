@@ -1,0 +1,18 @@
+[build]
+  # Note: This is a Flask application with ZAP dependencies
+  # Netlify is not suitable for this type of application
+  # Use Railway, Render, or Fly.io instead for Docker-based deployments
+  
+  # This file is created for deployment config requirements
+  # but the application should be deployed using Docker platforms
+  
+  command = "echo 'This Flask app with ZAP requires Docker deployment'"
+  publish = "."
+  
+[build.environment]
+  PYTHON_VERSION = "3.9"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
