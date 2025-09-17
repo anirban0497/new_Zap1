@@ -24,9 +24,11 @@ zap_host = os.getenv('ZAP_HOST', '127.0.0.1')
 zap_port = os.getenv('ZAP_PORT', '8081')
 zap_api_key = 'n8j4egcp9764kits0iojhf7kk5'
 zap_url = f'http://{zap_host}:{zap_port}'
-# Initialize ZAP without proxy configuration for API-only usage
-zap = ZAPv2(apikey=zap_api_key, proxies=None)
-zap._ZAPv2__base = zap_url
+# Initialize ZAP with proxy configuration (working method from debug)
+zap = ZAPv2(
+    apikey=zap_api_key,
+    proxies={'http': zap_url, 'https': zap_url}
+)
 
 # Test ZAP connection function
 def test_zap_connection():
@@ -47,14 +49,11 @@ def test_zap_connection():
                     print(f"Port 8081 not reachable on {host}")
                     continue
                 
-                # Create new ZAP instance without proxy configuration
+                # Create new ZAP instance with proxy configuration (working method)
                 test_zap = ZAPv2(
                     apikey='n8j4egcp9764kits0iojhf7kk5',
-                    proxies=None  # Don't use ZAP as proxy, just API calls
+                    proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'}
                 )
-                
-                # Override the base URL to point directly to ZAP API
-                test_zap._ZAPv2__base = f'http://{host}:8081'
                 
                 # Test basic connection
                 version = test_zap.core.version
@@ -749,8 +748,10 @@ def zap_status():
                 continue
             
             # Test ZAP API
-            test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies=None)
-            test_zap._ZAPv2__base = f'http://{host}:8081'
+            test_zap = ZAPv2(
+                apikey='n8j4egcp9764kits0iojhf7kk5',
+                proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'}
+            )
             version = test_zap.core.version
             diagnostics['connection_attempts'].append({
                 'host': host,
@@ -785,9 +786,16 @@ def debug_zap():
     try:
         # Test connection with multiple hosts
         connected = False
+        zap = ZAPv2(
+            apikey='n8j4egcp9764kits0iojhf7kk5',
+            proxies={'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
+        )
         for host in ['localhost', '127.0.0.1']:
             try:
-                test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'})
+                test_zap = ZAPv2(
+                    apikey='n8j4egcp9764kits0iojhf7kk5',
+                    proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'}
+                )
                 version = test_zap.core.version
                 debug_info['connection_status'] = f'Connected to {host}'
                 debug_info['zap_version'] = version
