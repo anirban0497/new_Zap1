@@ -38,20 +38,28 @@ set -e\n\
 start_zap() {\n\
     echo "Starting ZAP daemon..."\n\
     cd $ZAP_HOME\n\
-    ./zap.sh -daemon -host 127.0.0.1 -port 8081 -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=false > /tmp/zap.log 2>&1 &\n\
-    ZAP_PID=$!\n\
-    echo "ZAP started with PID: $ZAP_PID"\n\
-    \n\
-    # Wait for ZAP to be ready\n\
+    # Start ZAP daemon and wait for it to be ready\n\
+    echo "Starting ZAP daemon..."\n\
+    /zap/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx2g &\n\
+\n\
+    # Wait for ZAP to start (increased timeout and better health check)\n\
     echo "Waiting for ZAP to start..."\n\
-    for i in {1..90}; do\n\
-        if curl -s "http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1; then\n\
+    for i in {1..120}; do\n\
+        if curl -s http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
             echo "ZAP is ready!"\n\
-            return 0\n\
+            # Additional health check - make sure ZAP is fully operational\n\
+            sleep 5\n\
+            if curl -s http://127.0.0.1:8081/JSON/core/view/urls/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
+                echo "ZAP is fully operational!"\n\
+                break\n\
+            fi\n\
         fi\n\
-        echo "Waiting for ZAP... ($i/90)"\n\
-        sleep 2\n\
+        echo "Waiting for ZAP... ($i/120)"\n\
+        sleep 3\n\
     done\n\
+\n\
+    # Set ZAP to not timeout and increase memory\n\
+    curl -s "http://127.0.0.1:8081/JSON/core/action/setOptionTimeoutInSecs/?Integer=0&apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1 || true\n\
     \n\
     echo "ZAP failed to start in 180 seconds. Log:"\n\
     cat /tmp/zap.log || echo "No ZAP log available"\n\

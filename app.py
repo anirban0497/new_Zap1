@@ -29,17 +29,30 @@ zap = ZAPv2(proxies={'http': zap_url, 'https': zap_url}, apikey=zap_api_key)
 # Test ZAP connection function
 def test_zap_connection():
     try:
-        # Try multiple connection methods
-        hosts_to_try = ['127.0.0.1', 'localhost', '0.0.0.0']
+        # Try multiple connection methods with better error handling
+        hosts_to_try = ['127.0.0.1', 'localhost']
         
         for host in hosts_to_try:
             try:
-                test_zap = ZAPv2(apikey='n8j4egcp9764kits0iojhf7kk5', proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'})
+                # Create new ZAP instance with timeout
+                test_zap = ZAPv2(
+                    apikey='n8j4egcp9764kits0iojhf7kk5', 
+                    proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'},
+                    timeout=30
+                )
+                
+                # Test basic connection
                 version = test_zap.core.version
+                
+                # Test if ZAP is responsive
+                test_zap.core.urls()
+                
                 # Update global zap instance if connection successful
                 global zap
                 zap = test_zap
+                print(f"Successfully connected to ZAP version {version} on {host}")
                 return True, f"Connected to ZAP version {version} on {host}"
+                
             except Exception as e:
                 print(f"Failed to connect to ZAP on {host}: {e}")
                 continue
@@ -118,10 +131,18 @@ def run_spider_scan(target_url):
         scan_status['spider_progress'] = 0
         scan_status['spider_results'] = []
         
-        # Test ZAP connection first
-        connected, message = test_zap_connection()
+        # Test ZAP connection first and retry if needed
+        max_retries = 3
+        for retry in range(max_retries):
+            connected, message = test_zap_connection()
+            if connected:
+                break
+            print(f"ZAP connection attempt {retry + 1}/{max_retries} failed: {message}")
+            if retry < max_retries - 1:
+                time.sleep(10)  # Wait before retry
+        
         if not connected:
-            scan_status['spider_results'] = [f'ZAP Connection Error: {message}']
+            scan_status['spider_results'] = [f'ZAP Connection Error after {max_retries} attempts: {message}']
             scan_status['spider_running'] = False
             return
         
@@ -167,11 +188,18 @@ def run_spider_scan(target_url):
             '/clientaccesspolicy.xml', '/favicon.ico', '/apple-touch-icon.png'
         ]
         
-        # Clear any existing spider scans
+        # Clear any existing spider scans and reset ZAP state
         try:
             zap.spider.stop_all_scans()
+            zap.ascan.stop_all_scans()
+            time.sleep(3)
+            
+            # Clear ZAP's URL history to start fresh
+            zap.core.new_session()
             time.sleep(2)
-        except:
+            print("Cleared previous scan state and started new session")
+        except Exception as e:
+            print(f"Error clearing previous scans: {e}")
             pass
         
         # Start main spider scan with comprehensive settings
@@ -261,9 +289,20 @@ def run_spider_scan(target_url):
                 time.sleep(5)
                 wait_time += 5
         
-        # Get comprehensive results
-        spider_results = zap.spider.results(scan_id)
-        all_urls = zap.core.urls(baseurl=target_url)
+        # Get comprehensive results with better error handling
+        try:
+            spider_results = zap.spider.results(scan_id)
+            print(f"Spider results: {len(spider_results)} URLs from spider")
+        except Exception as e:
+            print(f"Error getting spider results: {e}")
+            spider_results = []
+        
+        try:
+            all_urls = zap.core.urls()  # Get all URLs, not just baseurl filtered
+            print(f"All URLs in ZAP: {len(all_urls)} URLs")
+        except Exception as e:
+            print(f"Error getting all URLs: {e}")
+            all_urls = []
         
         # Get additional URLs from sitemap and robots.txt
         additional_urls = []
@@ -271,10 +310,12 @@ def run_spider_scan(target_url):
             # Try to get sitemap URLs
             sitemap_url = base_domain + '/sitemap.xml'
             zap.urlopen(sitemap_url)
-            sitemap_urls = zap.core.urls(baseurl=sitemap_url)
+            time.sleep(1)
+            sitemap_urls = zap.core.urls()
             additional_urls.extend(sitemap_urls)
-        except:
-            pass
+            print(f"After sitemap check: {len(additional_urls)} additional URLs")
+        except Exception as e:
+            print(f"Sitemap check failed: {e}")
         
         # Combine all results for comprehensive URL list
         combined_results = list(set(spider_results + all_urls + additional_urls))
@@ -283,10 +324,25 @@ def run_spider_scan(target_url):
         target_domain = target_url.replace('https://', '').replace('http://', '').split('/')[0]
         filtered_results = [url for url in combined_results if target_domain in url]
         
+        # If still only 1 URL, try alternative discovery
+        if len(filtered_results) <= 1:
+            print("Limited URLs found, trying alternative discovery...")
+            try:
+                # Force more aggressive crawling
+                for i in range(5):  # Try multiple times
+                    zap.urlopen(target_url)
+                    time.sleep(2)
+                    current_urls = zap.core.urls()
+                    if len(current_urls) > len(filtered_results):
+                        filtered_results = [url for url in current_urls if target_domain in url]
+                        break
+            except Exception as e:
+                print(f"Alternative discovery failed: {e}")
+        
         scan_status['spider_results'] = filtered_results
         scan_status['spider_progress'] = 100
         
-        print(f"Spider scan completed. Found {len(filtered_results)} URLs.")
+        print(f"Spider scan completed. Found {len(filtered_results)} URLs total")
         
     except Exception as e:
         scan_status['spider_results'] = [f'Error: {str(e)}']
