@@ -41,30 +41,47 @@ set -e\n\
 start_zap() {\n\
     echo "Starting ZAP daemon..."\n\
     cd $ZAP_HOME\n\
-    # Start ZAP daemon and wait for it to be ready\n\
-    echo "Starting ZAP daemon..."\n\
-    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx512m &\n\
+    \n\
+    # Check if ZAP executable exists\n\
+    if [ ! -f "$ZAP_HOME/zap.sh" ]; then\n\
+        echo "ERROR: ZAP executable not found at $ZAP_HOME/zap.sh"\n\
+        return 1\n\
+    fi\n\
+    \n\
+    # Start ZAP daemon with reduced memory and logging\n\
+    echo "Starting ZAP daemon with 256MB memory..."\n\
+    $ZAP_HOME/zap.sh -daemon -host 0.0.0.0 -port 8081 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.key=n8j4egcp9764kits0iojhf7kk5 -config api.disablekey=false -Xmx256m > /tmp/zap.log 2>&1 &\n\
+    ZAP_PID=$!\n\
+    echo "ZAP started with PID: $ZAP_PID"\n\
 \n\
-    # Wait for ZAP to start (reduced timeout for memory-constrained environment)\n\
+    # Wait for ZAP to start with better error checking\n\
     echo "Waiting for ZAP to start..."\n\
-    for i in {1..60}; do\n\
+    for i in {1..40}; do\n\
+        # Check if ZAP process is still running\n\
+        if ! kill -0 $ZAP_PID 2>/dev/null; then\n\
+            echo "ERROR: ZAP process died. Log:"\n\
+            cat /tmp/zap.log || echo "No ZAP log available"\n\
+            return 1\n\
+        fi\n\
+        \n\
+        # Check if ZAP is responding\n\
         if curl -s http://127.0.0.1:8081/JSON/core/view/version/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
             echo "ZAP is ready!"\n\
-            # Additional health check - make sure ZAP is fully operational\n\
-            sleep 5\n\
+            sleep 3\n\
             if curl -s http://127.0.0.1:8081/JSON/core/view/urls/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
                 echo "ZAP is fully operational!"\n\
-                # Set ZAP to not timeout and increase memory\n\
                 curl -s "http://127.0.0.1:8081/JSON/core/action/setOptionTimeoutInSecs/?Integer=0&apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1 || true\n\
                 return 0\n\
             fi\n\
         fi\n\
-        echo "Waiting for ZAP... ($i/60)"\n\
+        echo "Waiting for ZAP... ($i/40) PID: $ZAP_PID"\n\
         sleep 3\n\
     done\n\
     \n\
-    echo "ZAP failed to start in 180 seconds. Log:"\n\
+    echo "ZAP failed to start in 120 seconds. Final log:"\n\
     cat /tmp/zap.log || echo "No ZAP log available"\n\
+    echo "ZAP process status:"\n\
+    ps aux | grep zap || echo "No ZAP processes found"\n\
     return 1\n\
 }\n\
 \n\

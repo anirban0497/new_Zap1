@@ -74,7 +74,10 @@ scan_status = {
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Test ZAP connection on page load and show status
+    connected, message = test_zap_connection()
+    zap_status = "Connected" if connected else f"Disconnected: {message}"
+    return render_template('index.html', zap_status=zap_status)
 
 @app.route('/start_scan', methods=['POST'])
 def start_scan():
@@ -700,7 +703,41 @@ def clear_results():
 @app.route('/zap_status')
 def zap_status():
     connected, message = test_zap_connection()
-    return jsonify({'connected': connected, 'message': message})
+    
+    # Additional diagnostics
+    diagnostics = {
+        'zap_host': zap_host,
+        'zap_port': zap_port,
+        'connection_attempts': []
+    }
+    
+    # Try each host individually for better diagnostics
+    hosts_to_try = ['127.0.0.1', 'localhost']
+    for host in hosts_to_try:
+        try:
+            test_zap = ZAPv2(
+                apikey='n8j4egcp9764kits0iojhf7kk5', 
+                proxies={'http': f'http://{host}:8081', 'https': f'http://{host}:8081'},
+                timeout=10
+            )
+            version = test_zap.core.version
+            diagnostics['connection_attempts'].append({
+                'host': host,
+                'status': 'success',
+                'version': version
+            })
+        except Exception as e:
+            diagnostics['connection_attempts'].append({
+                'host': host,
+                'status': 'failed',
+                'error': str(e)
+            })
+    
+    return jsonify({
+        'connected': connected,
+        'message': message,
+        'diagnostics': diagnostics
+    })
 
 @app.route('/debug_zap', methods=['GET', 'POST'])
 def debug_zap():
