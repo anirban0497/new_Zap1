@@ -54,17 +54,16 @@ start_zap() {\n\
             sleep 5\n\
             if curl -s http://127.0.0.1:8081/JSON/core/view/urls/?apikey=n8j4egcp9764kits0iojhf7kk5 > /dev/null 2>&1; then\n\
                 echo "ZAP is fully operational!"\n\
-                break\n\
+                # Set ZAP to not timeout and increase memory\n\
+                curl -s "http://127.0.0.1:8081/JSON/core/action/setOptionTimeoutInSecs/?Integer=0&apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1 || true\n\
+                return 0\n\
             fi\n\
         fi\n\
         echo "Waiting for ZAP... ($i/120)"\n\
         sleep 3\n\
     done\n\
-\n\
-    # Set ZAP to not timeout and increase memory\n\
-    curl -s "http://127.0.0.1:8081/JSON/core/action/setOptionTimeoutInSecs/?Integer=0&apikey=n8j4egcp9764kits0iojhf7kk5" > /dev/null 2>&1 || true\n\
     \n\
-    echo "ZAP failed to start in 180 seconds. Log:"\n\
+    echo "ZAP failed to start in 360 seconds. Log:"\n\
     cat /tmp/zap.log || echo "No ZAP log available"\n\
     return 1\n\
 }\n\
