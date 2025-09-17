@@ -1,14 +1,14 @@
-FROM python:3.9-slim
+FROM python:3.9
 
-# Install system dependencies
+# Install system dependencies including Java
 RUN apt-get update && apt-get install -y \
     wget \
-    openjdk-17-jdk \
     curl \
+    default-jdk \
     && rm -rf /var/lib/apt/lists/*
 
 # Set JAVA_HOME
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV JAVA_HOME=/usr/lib/jvm/default-java
 
 # Download and install ZAP
 RUN wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2_16_1_unix.sh -O /tmp/zap.sh \
